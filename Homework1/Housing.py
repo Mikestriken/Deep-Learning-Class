@@ -121,9 +121,9 @@ while (epochIterator < EPOCHS or EPOCHS == -1):
         avgTrainBatchLossPerEpoch += [trainEpochAverageBatchLoss]
         
         totalLossInEpoch = 0
-        for X_test_batch_imgs, Y_test_batch_labels in test_loader:
-            Y_test_pred_imgs_logits:torch.Tensor = model(X_test_batch_imgs)
-            testBatchLoss = Loss_Function(Y_train_pred_logits, Y_train_batch)
+        for X_test_batch, Y_test_batch in test_loader:
+            Y_test_pred_imgs_logits:torch.Tensor = model(X_test_batch)
+            testBatchLoss = Loss_Function(Y_test_pred_imgs_logits, Y_test_batch)
             
             totalLossInEpoch += testBatchLoss
             
@@ -148,19 +148,15 @@ with torch.inference_mode():
     # plt.scatter(x=[x for x in range(len(avgTestBatchLossPerEpoch))], y=avgTestBatchLossPerEpoch)
     plt.plot(avgTrainBatchLossPerEpoch, label="Training Loss", alpha=0.9, zorder=2)
     plt.plot(avgTestBatchLossPerEpoch, label="Test/Validation Loss", alpha=0.7, zorder=1)
-    
-    
-    plt.plot(avgTrainBatchLossPerEpoch + 0.15, label="Training Loss + 0.15", c='b', linestyle='--', alpha=0.9, zorder=2)
-    plt.plot(avgTrainBatchLossPerEpoch - 0.1, label="Training Loss - 0.10", c='b', linestyle='--', alpha=0.9, zorder=2)
 
     
-    plt.title('Loss Per Epoch; Increased Complexity')
+    plt.title('Loss Per Epoch')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.legend()
     plt.gca().xaxis.set_major_locator(plt.MaxNLocator(integer=True))
     
-    plt.ylim(0, 0.4)
+    plt.ylim(0, 3)
 
     # Adjust layout and display the plot
     plt.tight_layout()  # Avoid overlap between subplots
