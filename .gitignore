@@ -14,5 +14,6 @@
 **/tmp/*
 
 # Archives
-*.zip
-*.Zip
+***.zip
+***.Zip
+***.gz
