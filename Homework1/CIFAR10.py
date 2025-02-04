@@ -13,7 +13,6 @@ from sklearn.model_selection import train_test_split
 import time
 from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix, ConfusionMatrixDisplay
 
-
 from API_Helpers import *
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -26,42 +25,30 @@ batch4 = os.path.join(script_dir, 'cifar-10-batches-py/data_batch_4')
 batch5 = os.path.join(script_dir, 'cifar-10-batches-py/data_batch_5')
 batchTest = os.path.join(script_dir, 'cifar-10-batches-py/test_batch')
 
-batchMeta_classification = unpickle(batchMeta)["label_names"]
 batch1_imgs = unpickle(batch1)["data"]
 batch2_imgs = unpickle(batch2)["data"]
 batch3_imgs = unpickle(batch3)["data"]
 batch4_imgs = unpickle(batch4)["data"]
 batch5_imgs = unpickle(batch5)["data"]
+batchTest_imgs = unpickle(batchTest)["data"]
 
-X_imgs = np.append(np.append(np.append(np.append(batch1_imgs, batch2_imgs), batch3_imgs), batch4_imgs), batch5_imgs)
+X_imgs = np.append(np.append(np.append(np.append(np.append(batch1_imgs, batch2_imgs), batch3_imgs), batch4_imgs), batch5_imgs), batchTest_imgs)
 
-# X_train_imgs = np.append(np.append(np.append(batch1_imgs, batch2_imgs), batch3_imgs), batch4_imgs)
-# X_train_imgs = torch.from_numpy(X_train_imgs).reshape(-1,3,32,32).permute(0,2,3,1).type(torch.float32)/255
-# X_test_imgs = torch.from_numpy(batch5_imgs).reshape(-1,3,32,32).permute(0,2,3,1).type(torch.float32)/255
-
+batchMeta_classification = unpickle(batchMeta)["label_names"]
 batch1_labels = unpickle(batch1)["labels"]
 batch2_labels = unpickle(batch2)["labels"]
 batch3_labels = unpickle(batch3)["labels"]
 batch4_labels = unpickle(batch4)["labels"]
 batch5_labels = unpickle(batch5)["labels"]
+batchTest_labels = unpickle(batchTest)["labels"]
 
-Y_labels = np.append(np.append(np.append(np.append(batch1_labels, batch2_labels), batch3_labels), batch4_labels), batch5_labels)
-# Y_train_labels = np.append(np.append(np.append(batch1_labels, batch2_labels), batch3_labels), batch4_labels)
-# Y_train_labels = torch.tensor(Y_train_labels, dtype=torch.float32)
-# Y_test_labels = torch.tensor(batch5_labels, dtype=torch.float32)
+Y_labels = np.append(np.append(np.append(np.append(np.append(batch1_labels, batch2_labels), batch3_labels), batch4_labels), batch5_labels), batchTest_labels)
 
 X_imgs = torch.from_numpy(X_imgs).reshape(-1,3,32,32).permute(0,2,3,1).type(torch.float32)/255
 Y_labels = torch.tensor(Y_labels, dtype=torch.float32)
 
 # ========================== Train ==========================
-# X_train_imgs = X_train_imgs.reshape(-1,32*32*3)
-# X_test_imgs = X_test_imgs.reshape(-1,32*32*3)
 X_imgs = X_imgs.reshape(-1,32*32*3)
-
-# Y_train_labels = Y_train_labels.to(torch.device("cuda"))
-# X_train_imgs = X_train_imgs.to(torch.device("cuda"))
-# Y_test_labels = Y_test_labels.to(torch.device("cuda"))
-# X_test_imgs = X_test_imgs.to(torch.device("cuda"))
 
 Y_labels = Y_labels.to(torch.device("cuda"))
 X_imgs = X_imgs.to(torch.device("cuda"))
@@ -113,73 +100,15 @@ model = nn.Sequential(
 #                                                   Load Model
 # ===============================================================================================================
 model = torch.load('Saved_Models/20_Epoch_CIFAR.pt')
-# %%
-# ===============================================================================================================
-#                                      Training Attempt 1: (No Batching)
-# ===============================================================================================================
-Loss_Function = nn.CrossEntropyLoss()
-Optimizer_Function = torch.optim.SGD(params=model.parameters(),
-                                     lr=0.15)
-
-EPOCHS = -1
-epochIterator = 0
-
-avgBatchLossPerEpoch = []
-trainAccuracyPerEpoch = []
-testAccuracyPerEpoch = []
-
-MOVING_AVG_RANGE = 1
-avgLossPerEpoch = 0
-avgTrainAccuracy = 0
-avgTestAccuracy = 0
-
-while (avgTestAccuracy < 51) and (epochIterator < EPOCHS or EPOCHS == -1):
-    model.train()
-    Y_train_pred_imgs_logits:torch.Tensor = model(train_dataset.features)
-    
-    trainEpochLoss = Loss_Function(Y_train_pred_imgs_logits, train_dataset.labels.type(torch.int64))
-    
-    Optimizer_Function.zero_grad()
-    trainEpochLoss.backward()
-    Optimizer_Function.step()
-    
-    model.eval()
-    
-    avgBatchLossPerEpoch += [trainEpochLoss.data.item()]
-    Y_train_pred_imgs_labels:torch.Tensor = Y_train_pred_imgs_logits.softmax(dim=1).argmax(dim=1)
-    trainEpochAccuracy = getAccuracy(labelSet=train_dataset.labels, predSet=Y_train_pred_imgs_labels)
-    trainAccuracyPerEpoch += [trainEpochAccuracy]
-    
-    with torch.inference_mode():
-        Y_test_pred_imgs_logits:torch.Tensor = model(test_dataset.features)
-        Y_test_pred_imgs_labels:torch.Tensor = Y_test_pred_imgs_logits.softmax(dim=1).argmax(dim=1)
-    
-        testEpochLoss = Loss_Function(Y_test_pred_imgs_logits, test_dataset.labels.type(torch.int64))
-    
-        testEpochAccuracy = getAccuracy(labelSet=test_dataset.labels, predSet=Y_test_pred_imgs_labels)
-        testAccuracyPerEpoch += [testEpochAccuracy]
-        
-        print(f"epoch: {epochIterator} \t| train loss: {trainEpochLoss:.5f}, train accuracy: {trainEpochAccuracy:.2f}% \t| test loss: {testEpochLoss:.5f}, test accuracy: {testEpochAccuracy:.2f}%")
-    
-    avgLossPerEpoch = sum(avgBatchLossPerEpoch[-MOVING_AVG_RANGE:])/MOVING_AVG_RANGE
-    avgTrainAccuracy = sum(trainAccuracyPerEpoch[-MOVING_AVG_RANGE:])/MOVING_AVG_RANGE
-    avgTestAccuracy = sum(testAccuracyPerEpoch[-MOVING_AVG_RANGE:])/MOVING_AVG_RANGE
-    
-    epochIterator += 1
-            
-print(f"Avg Loss: {avgLossPerEpoch}")
-print(f"Train Avg Accuracy: {avgTrainAccuracy:.2f}%")
-print(f"Test Avg Accuracy: {avgTestAccuracy:.2f}%")
-    
 # %% 
 # ===============================================================================================================
-#                                      Training Attempt 2: (With Batching)
+#                                                    Training
 # ===============================================================================================================
 Loss_Function = nn.CrossEntropyLoss()
 Optimizer_Function = torch.optim.SGD(params=model.parameters(),
                                      lr=0.15)
 
-EPOCHS = 80
+EPOCHS = 20
 epochIterator = 0
 
 avgBatchLossPerEpoch = []
@@ -211,7 +140,7 @@ while (epochIterator < EPOCHS or EPOCHS == -1):
         epochAverageBatchLoss = totalLossInEpoch/len(train_loader)
         avgBatchLossPerEpoch += [epochAverageBatchLoss]
         
-        trainEpochAccuracy = numCorrectInEpoch/len(train_loader.dataset) * 100
+        trainEpochAccuracy = numCorrectInEpoch/len(train_loader.dataset) * 100 # accuracy is calculated per item in a batch instead of per batch
         trainAccuracyPerEpoch += [trainEpochAccuracy]
         
         numCorrectInEpoch = 0
@@ -229,7 +158,11 @@ while (epochIterator < EPOCHS or EPOCHS == -1):
         print(f"epoch: {epochIterator} \t| train loss: {epochAverageBatchLoss:.5f}, train accuracy: {trainEpochAccuracy:.2f}% \t| test accuracy: {testEpochAccuracy:.2f}% \t| TTG: {int(estRemainingTime):02}:{int((estRemainingTime - int(estRemainingTime))*60):02}")
         
         epochIterator += 1
-
+        
+# %%
+# ===============================================================================================================
+#                                                   Plot Loss
+# ===============================================================================================================
 with torch.inference_mode():
     avgBatchLossPerEpoch = torch.tensor(avgBatchLossPerEpoch).cpu()
     
