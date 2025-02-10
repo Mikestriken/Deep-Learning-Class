@@ -5,6 +5,7 @@
 import torch
 import torch.nn as nn
 import torch.utils.data as data
+import torchvision
 import os
 import matplotlib
 import matplotlib.pyplot as plt
@@ -17,13 +18,18 @@ from API_Helpers import *
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-batchMeta = os.path.join(script_dir, 'cifar-10-batches-py/batches.meta')
-batch1 = os.path.join(script_dir, 'cifar-10-batches-py/data_batch_1')
-batch2 = os.path.join(script_dir, 'cifar-10-batches-py/data_batch_2')
-batch3 = os.path.join(script_dir, 'cifar-10-batches-py/data_batch_3')
-batch4 = os.path.join(script_dir, 'cifar-10-batches-py/data_batch_4')
-batch5 = os.path.join(script_dir, 'cifar-10-batches-py/data_batch_5')
-batchTest = os.path.join(script_dir, 'cifar-10-batches-py/test_batch')
+torchvision.datasets.CIFAR10(root='./datasets', train=True,
+                             download=True, transform=None)
+torchvision.datasets.CIFAR10(root='./datasets', train=False,
+                             download=True, transform=None)
+
+batchMeta = os.path.join(script_dir, 'datasets/cifar-10-batches-py/batches.meta')
+batch1 = os.path.join(script_dir, 'datasets/cifar-10-batches-py/data_batch_1')
+batch2 = os.path.join(script_dir, 'datasets/cifar-10-batches-py/data_batch_2')
+batch3 = os.path.join(script_dir, 'datasets/cifar-10-batches-py/data_batch_3')
+batch4 = os.path.join(script_dir, 'datasets/cifar-10-batches-py/data_batch_4')
+batch5 = os.path.join(script_dir, 'datasets/cifar-10-batches-py/data_batch_5')
+batchTest = os.path.join(script_dir, 'datasets/cifar-10-batches-py/test_batch')
 
 batch1_imgs = unpickle(batch1)["data"]
 batch2_imgs = unpickle(batch2)["data"]
@@ -55,8 +61,8 @@ X_imgs = X_imgs.to(torch.device("cuda"))
 # --------------------------- or ---------------------------
 # IMAGE_INDEX = 1000
 # print(batchMeta_classification)
-# print(batchMeta_classification[Y_train_labels[IMAGE_INDEX].type(torch.int64)])
-# plt.imshow(X_train_imgs[IMAGE_INDEX].cpu())
+# print(batchMeta_classification[Y_labels[IMAGE_INDEX].type(torch.int64)])
+# plt.imshow(X_imgs[IMAGE_INDEX].cpu())
 # plt.show()
 # ===================== Preview Images =====================
 
