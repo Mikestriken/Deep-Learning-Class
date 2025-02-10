@@ -13,6 +13,9 @@
 # temp folders from fetch()
 **/tmp/*
 
+# datasets
+**/datasets/
+
 # Archives
 ***.zip
 ***.Zip
