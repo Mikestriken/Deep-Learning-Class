@@ -16,6 +16,10 @@
 # datasets
 **/datasets/
 
+# Models that are too big and Temp models
+**/Saved_Models/Too_Big/
+**/best_model.pth
+
 # Archives
 ***.zip
 ***.Zip
