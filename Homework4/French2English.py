@@ -359,7 +359,7 @@ Loss_Function:nn.CrossEntropyLoss = nn.CrossEntropyLoss(ignore_index=PADDING_TOK
 Optimizer_Function:torch.optim.Adam = torch.optim.Adam(params=model.parameters())#,
                                                     #  lr=0.15) #0.15
 
-EPOCHS:int = 200
+EPOCHS:int = 100
 epochIterator:int = 0
 
 avgTrainBatchLossPerEpoch:list = []
