@@ -181,10 +181,10 @@ class Seq2Seq(nn.Module):
     def __init__(self):
         super().__init__()
         
-        NUM_RNN_LAYERS:int = 1
-        EMBEDDING_SIZE:int = 128
-        HIDDEN_SIZE:int = 128
-        DROPOUT_PROB:float = 0.0
+        NUM_RNN_LAYERS:int = 2
+        EMBEDDING_SIZE:int = 2048
+        HIDDEN_SIZE:int = 2048
+        DROPOUT_PROB:float = 0.8
         
         self.encoder:Encoder = Encoder(embedding_size=EMBEDDING_SIZE, hidden_size=HIDDEN_SIZE, num_layers=NUM_RNN_LAYERS, dropout_prob=DROPOUT_PROB).to(DEVICE)
         self.decoder:Decoder = Decoder(embedding_size=EMBEDDING_SIZE, hidden_size=HIDDEN_SIZE, num_layers=NUM_RNN_LAYERS, dropout_prob=DROPOUT_PROB).to(DEVICE)
@@ -358,7 +358,7 @@ Loss_Function:nn.CrossEntropyLoss = nn.CrossEntropyLoss(ignore_index=PADDING_TOK
 Optimizer_Function:torch.optim.Adam = torch.optim.Adam(params=model.parameters())#,
                                                     #  lr=0.15) #0.15
 
-EPOCHS:int = 100
+EPOCHS:int = 50
 epochIterator:int = 0
 
 avgTrainBatchLossPerEpoch:list = []
