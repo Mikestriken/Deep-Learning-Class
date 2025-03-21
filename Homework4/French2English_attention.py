@@ -356,8 +356,8 @@ class Seq2Seq(nn.Module):
             
             decoded_outputs:list = [self.outputDenseLayer(dense_layer_input)]
             
-            while decoder_output.squeeze().argmax().item() != EOS_TOKEN:
-                decoder_output, last_decoder_hidden_state = self.decoder(X=decoder_output.argmax().unsqueeze(dim=0), Input_Hidden_State=last_decoder_hidden_state)
+            while self.outputDenseLayer(dense_layer_input).squeeze().argmax().item() != EOS_TOKEN:
+                decoder_output, last_decoder_hidden_state = self.decoder(X=self.outputDenseLayer(dense_layer_input).argmax().unsqueeze(dim=0), Input_Hidden_State=last_decoder_hidden_state)
             
                 context_vector = self.attention(encoder_outputs, decoder_output)
                 dense_layer_input = torch.cat((decoder_output.squeeze(dim=1), context_vector), dim=1) # (batch_size, hidden_size * (2 + isBiDirectional))
