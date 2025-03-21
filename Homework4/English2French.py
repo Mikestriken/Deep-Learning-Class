@@ -171,7 +171,7 @@ class Decoder(nn.Module):
         output:torch.Tensor
         Hidden_State:torch.Tensor
         if X.dim() > 1:
-            output, Hidden_State = self.rnn(X_Embedded, Input_Hidden_State) # RuntimeError: Expected hidden size (1, 32, 128), got [1, 17, 128]
+            output, Hidden_State = self.rnn(X_Embedded, Input_Hidden_State)
         else:
             # Input_Hidden_State = Input_Hidden_State.unsqueeze(dim=0) if Input_Hidden_State is not None else Input_Hidden_State
             
@@ -183,10 +183,12 @@ class Seq2Seq(nn.Module):
     def __init__(self):
         super().__init__()
         
-        NUM_RNN_LAYERS = 1
+        NUM_RNN_LAYERS = 2
+        EMBEDDING_SIZE = 256
+        HIDDEN_SIZE = 256
         
-        self.encoder:Encoder = Encoder(embedding_size=128, hidden_size=128, num_layers=NUM_RNN_LAYERS).to(DEVICE)
-        self.decoder:Decoder = Decoder(embedding_size=128, hidden_size=128, num_layers=NUM_RNN_LAYERS).to(DEVICE)
+        self.encoder:Encoder = Encoder(embedding_size=EMBEDDING_SIZE, hidden_size=HIDDEN_SIZE, num_layers=NUM_RNN_LAYERS).to(DEVICE)
+        self.decoder:Decoder = Decoder(embedding_size=EMBEDDING_SIZE, hidden_size=HIDDEN_SIZE, num_layers=NUM_RNN_LAYERS).to(DEVICE)
         
     def forward(self, X:torch.Tensor, Y_Ground_Truth:torch.Tensor = None, X_sequence_lengths:torch.Tensor = None):
         

@@ -209,17 +209,19 @@ class Seq2Seq(nn.Module):
         super().__init__()
         
         NUM_RNN_LAYERS:int = 1
+        EMBEDDING_SIZE = 128
+        HIDDEN_SIZE = 128
         
-        self.encoder:Encoder = Encoder(embedding_size=128, hidden_size=128, num_layers=NUM_RNN_LAYERS).to(DEVICE)
-        self.decoder:Decoder = Decoder(embedding_size=128, hidden_size=128, num_layers=NUM_RNN_LAYERS).to(DEVICE)
+        self.encoder:Encoder = Encoder(embedding_size=EMBEDDING_SIZE, hidden_size=HIDDEN_SIZE, num_layers=NUM_RNN_LAYERS).to(DEVICE)
+        self.decoder:Decoder = Decoder(embedding_size=EMBEDDING_SIZE, hidden_size=HIDDEN_SIZE, num_layers=NUM_RNN_LAYERS).to(DEVICE)
         
         self.encoder2decoder_hidden_linear:nn.Linear = nn.Linear(in_features=NUM_RNN_LAYERS * (1 + int(BI_DIRECTIONAL_ENCODER)), out_features=NUM_RNN_LAYERS, device=DEVICE)
         
-        self.attention = BahdanauAttention(hidden_size=128)
+        self.attention = BahdanauAttention(hidden_size=HIDDEN_SIZE)
         
         self.outputDenseLayer = nn.Sequential(
             
-            nn.Linear(in_features=128*(2 + int(BI_DIRECTIONAL_ENCODER)), out_features=NUM_ENGLISH_WORDS),
+            nn.Linear(in_features=HIDDEN_SIZE*(2 + int(BI_DIRECTIONAL_ENCODER)), out_features=NUM_ENGLISH_WORDS),
         )
         
     def forward(self, X:torch.Tensor, Y_Ground_Truth:torch.Tensor = None, X_sequence_lengths:torch.Tensor = None):
