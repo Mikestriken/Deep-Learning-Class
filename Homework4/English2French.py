@@ -57,10 +57,10 @@ NUM_ENGLISH_WORDS:int = len(english_words) + NUM_ADDED_TOKENS
 NUM_FRENCH_WORDS:int = len(french_words) + NUM_ADDED_TOKENS
 
 english_word_to_ix = {"PAD": PADDING_TOKEN, "EOS": EOS_TOKEN, **{ch: i + NUM_ADDED_TOKENS for i, ch in enumerate(english_words)}} 
-ix_to_english_word = {i: ch for i, ch in english_word_to_ix.items()}
+ix_to_english_word = {i: ch for ch, i in english_word_to_ix.items()}
 
 french_word_to_ix = {"PAD": PADDING_TOKEN, "EOS": EOS_TOKEN, **{ch: i + NUM_ADDED_TOKENS for i, ch in enumerate(french_words)}} 
-ix_to_french_word = {i: ch for i, ch in french_word_to_ix.items()}
+ix_to_french_word = {i: ch for ch, i in french_word_to_ix.items()}
 
 # ========== Train Set ==========
 X_Train = [[english_word_to_ix[word] for word in sentence.split()] + [EOS_TOKEN] for sentence in Train_dataset[:,0]]
