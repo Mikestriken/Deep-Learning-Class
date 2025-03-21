@@ -112,13 +112,13 @@ test_prefetcher:CudaDataPrefetcher = CudaDataPrefetcher(data_iterable=test_loade
 DROPOUT_PROB:float = 0.0
 
 class Encoder(nn.Module):
-    def __init__(self, padding_token = PADDING_TOKEN):
+    def __init__(self, embedding_size, hidden_size, padding_token = PADDING_TOKEN):
         super().__init__()
         self.padding_token:int = padding_token
         
-        self.wordEmbeddingLayer:nn.Embedding = nn.Embedding(num_embeddings=NUM_ENGLISH_WORDS, embedding_dim=128, padding_idx=padding_token)
+        self.wordEmbeddingLayer:nn.Embedding = nn.Embedding(num_embeddings=NUM_ENGLISH_WORDS, embedding_dim=embedding_size, padding_idx=padding_token)
         
-        self.rnn:nn.GRU = nn.GRU(input_size=128, hidden_size=128,
+        self.rnn:nn.GRU = nn.GRU(input_size=embedding_size, hidden_size=hidden_size,
                                  batch_first=True, dropout=DROPOUT_PROB)
         
     
@@ -146,19 +146,19 @@ class Encoder(nn.Module):
         return output, Hidden_State
         
 class Decoder(nn.Module):
-    def __init__(self, padding_token = PADDING_TOKEN):
+    def __init__(self, embedding_size, hidden_size, padding_token = PADDING_TOKEN):
         super().__init__()
         
         self.padding_token:int = padding_token
         
-        self.wordEmbeddingLayer:nn.Embedding = nn.Embedding(num_embeddings=NUM_FRENCH_WORDS, embedding_dim=128, padding_idx=padding_token)
+        self.wordEmbeddingLayer:nn.Embedding = nn.Embedding(num_embeddings=NUM_FRENCH_WORDS, embedding_dim=embedding_size, padding_idx=padding_token)
         
-        self.rnn:nn.GRU = nn.GRU(input_size=128, hidden_size=128,
+        self.rnn:nn.GRU = nn.GRU(input_size=embedding_size, hidden_size=hidden_size,
                                  batch_first=True, dropout=DROPOUT_PROB)
         
         self.outputDenseLayer = nn.Sequential(
             
-            nn.Linear(in_features=128, out_features=NUM_FRENCH_WORDS),
+            nn.Linear(in_features=hidden_size, out_features=NUM_FRENCH_WORDS),
         )
     
     def forward(self, X, Input_Hidden_State = None):
@@ -183,8 +183,8 @@ class Seq2Seq(nn.Module):
     def __init__(self):
         super().__init__()
         
-        self.encoder:Encoder = Encoder().to(DEVICE)
-        self.decoder:Decoder = Decoder().to(DEVICE)
+        self.encoder:Encoder = Encoder(embedding_size=128, hidden_size=128).to(DEVICE)
+        self.decoder:Decoder = Decoder(embedding_size=128, hidden_size=128).to(DEVICE)
         
     def forward(self, X:torch.Tensor, Y_Ground_Truth:torch.Tensor = None, X_sequence_lengths:torch.Tensor = None):
         
