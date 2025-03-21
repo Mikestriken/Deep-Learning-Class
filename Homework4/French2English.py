@@ -365,10 +365,12 @@ testAccuracyPerEpoch:list = []
 
 bestTestAccuracy:float = 0
 
+MINIMUM_TEST_ACCURACY:int = 40
+
 TOTAL_TRAIN_TOKENS = sum((Y_train_batch != PADDING_TOKEN).sum().item() for _, Y_train_batch, _ in train_loader)
 TOTAL_TEST_TOKENS = sum((Y_test_batch != PADDING_TOKEN).sum().item() for _, Y_test_batch, _ in test_loader)
 
-while not interrupted and ((epochIterator < EPOCHS or EPOCHS == -1) or trainEpochAccuracy < testEpochAccuracy + linearOffset(input=testEpochAccuracy, offset=3, target=99) or bestTestAccuracy < 50):
+while not interrupted and ((epochIterator < EPOCHS or EPOCHS == -1) or trainEpochAccuracy < testEpochAccuracy + linearOffset(input=testEpochAccuracy, offset=3, target=99) or bestTestAccuracy < MINIMUM_TEST_ACCURACY):
     startTime:float = time.time()
     model.train()
     
@@ -428,7 +430,7 @@ while not interrupted and ((epochIterator < EPOCHS or EPOCHS == -1) or trainEpoc
         estRemainingTime:float = (EPOCHS - epochIterator - 1)*epochTime / 60
         print(f"epoch: {epochIterator} \t| train loss: {trainEpochAverageBatchLoss:.5f}, train accuracy: {trainEpochAccuracy:.2f}% \t| test loss: {testEpochAverageBatchLoss:.5f}, test accuracy: {testEpochAccuracy:.2f}% \t| TTG: {int(estRemainingTime):02}:{int((estRemainingTime - int(estRemainingTime))*60):02}")
         
-        if testEpochAccuracy > 50 and testEpochAccuracy > bestTestAccuracy: 
+        if testEpochAccuracy > MINIMUM_TEST_ACCURACY and testEpochAccuracy > bestTestAccuracy: 
             bestTestAccuracy:float = testEpochAccuracy
             torch.save(model.state_dict(), 'Saved_Models/best_model.pth')
             print(f"↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ SAVED ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
