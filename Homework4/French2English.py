@@ -323,7 +323,7 @@ print(f"Total Num Params in loaded model: {sum([p.numel() for p in model.paramet
 
 # linear:nn.Linear = nn.Linear(in_features=128, out_features=NUM_FRENCH_WORDS)
 
-firstBatch = next(iter(train_loader))
+firstBatch = next(iter(test_loader))
 X, Y, X_sequence_lengths = firstBatch
 X, Y, X_sequence_lengths = X.to(DEVICE), Y.to(DEVICE), X_sequence_lengths.to(DEVICE)
 
