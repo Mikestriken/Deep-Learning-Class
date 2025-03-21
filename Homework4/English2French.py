@@ -109,17 +109,15 @@ test_loader:data.DataLoader = data.DataLoader(test_dataset, batch_size=32,
 train_prefetcher:CudaDataPrefetcher = CudaDataPrefetcher(data_iterable=train_loader, device=DEVICE, num_prefetch_batches=NUM_BATCHES_TO_PREFETCH)
 test_prefetcher:CudaDataPrefetcher = CudaDataPrefetcher(data_iterable=test_loader, device=DEVICE, num_prefetch_batches=NUM_BATCHES_TO_PREFETCH)
 
-DROPOUT_PROB:float = 0.0
-
 class Encoder(nn.Module):
-    def __init__(self, embedding_size, hidden_size, num_layers, padding_token = PADDING_TOKEN):
+    def __init__(self, embedding_size, hidden_size, num_layers, dropout_prob, padding_token = PADDING_TOKEN):
         super().__init__()
         self.padding_token:int = padding_token
         
         self.wordEmbeddingLayer:nn.Embedding = nn.Embedding(num_embeddings=NUM_ENGLISH_WORDS, embedding_dim=embedding_size, padding_idx=padding_token)
         
         self.rnn:nn.GRU = nn.GRU(input_size=embedding_size, hidden_size=hidden_size,
-                                 batch_first=True, dropout=DROPOUT_PROB, num_layers=num_layers)
+                                 batch_first=True, dropout=dropout_prob if num_layers > 1 else 0.0, num_layers=num_layers)
         
     
     def forward(self, X:torch.Tensor, Input_Hidden_State = None, X_sequence_lengths:torch.Tensor = None):
@@ -146,7 +144,7 @@ class Encoder(nn.Module):
         return output, Hidden_State
         
 class Decoder(nn.Module):
-    def __init__(self, embedding_size, hidden_size, num_layers, padding_token = PADDING_TOKEN):
+    def __init__(self, embedding_size, hidden_size, num_layers, dropout_prob, padding_token = PADDING_TOKEN):
         super().__init__()
         
         self.padding_token:int = padding_token
@@ -154,7 +152,7 @@ class Decoder(nn.Module):
         self.wordEmbeddingLayer:nn.Embedding = nn.Embedding(num_embeddings=NUM_FRENCH_WORDS, embedding_dim=embedding_size, padding_idx=padding_token)
         
         self.rnn:nn.GRU = nn.GRU(input_size=embedding_size, hidden_size=hidden_size,
-                                 batch_first=True, dropout=DROPOUT_PROB, num_layers=num_layers)
+                                 batch_first=True, dropout=dropout_prob if num_layers > 1 else 0.0, num_layers=num_layers)
         
         self.outputDenseLayer = nn.Sequential(
             
@@ -183,12 +181,13 @@ class Seq2Seq(nn.Module):
     def __init__(self):
         super().__init__()
         
-        NUM_RNN_LAYERS = 2
-        EMBEDDING_SIZE = 256
-        HIDDEN_SIZE = 512
+        NUM_RNN_LAYERS:int = 2
+        EMBEDDING_SIZE:int = 256
+        HIDDEN_SIZE:int = 512
+        DROPOUT_PROB:float = 0.5
         
-        self.encoder:Encoder = Encoder(embedding_size=EMBEDDING_SIZE, hidden_size=HIDDEN_SIZE, num_layers=NUM_RNN_LAYERS).to(DEVICE)
-        self.decoder:Decoder = Decoder(embedding_size=EMBEDDING_SIZE, hidden_size=HIDDEN_SIZE, num_layers=NUM_RNN_LAYERS).to(DEVICE)
+        self.encoder:Encoder = Encoder(embedding_size=EMBEDDING_SIZE, hidden_size=HIDDEN_SIZE, num_layers=NUM_RNN_LAYERS, dropout_prob=DROPOUT_PROB).to(DEVICE)
+        self.decoder:Decoder = Decoder(embedding_size=EMBEDDING_SIZE, hidden_size=HIDDEN_SIZE, num_layers=NUM_RNN_LAYERS, dropout_prob=DROPOUT_PROB).to(DEVICE)
         
     def forward(self, X:torch.Tensor, Y_Ground_Truth:torch.Tensor = None, X_sequence_lengths:torch.Tensor = None):
         
