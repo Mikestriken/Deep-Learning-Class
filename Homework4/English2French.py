@@ -8,6 +8,7 @@ import torch.utils.data as data
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
 from torchtnt.utils.data import CudaDataPrefetcher
 from torchvision import datasets as imageDatasets, transforms as imageTransforms
+from torchprofile import profile_macs
 
 from sklearn.model_selection import train_test_split
 import numpy as np
@@ -301,7 +302,19 @@ class Seq2Seq(nn.Module):
 # ========== Model Parameters ==========
 
 model:Seq2Seq = Seq2Seq().to(DEVICE)
-print(f"Total Num Params in loaded model: {sum([p.numel() for p in model.parameters()])}")
+total_params = sum([p.numel() for p in model.parameters()])
+print(f"Total Num Params in loaded model: {total_params:,}")
+
+# Calculate MACs (Multiply-Accumulate Operations)
+# Create sample inputs for profiling
+firstBatch = next(iter(train_loader))
+sample_X, sample_Y = firstBatch
+sample_X, sample_Y = sample_X.to(DEVICE), sample_Y.to(DEVICE)
+
+# Profile the model
+macs = profile_macs(model, (sample_X, sample_Y))
+print(f"Computational complexity: {macs:,} MACs")
+print(f"Model size: {total_params * 4 / (1024 * 1024):.2f} MB (assuming float32)")
 # %%
 # ================================================ Shape Testing ================================================
 # X:torch.Tensor = torch.rand(size=(32, 32, 32, 3)).permute(0, 3, 1, 2)
@@ -322,14 +335,49 @@ print(f"Total Num Params in loaded model: {sum([p.numel() for p in model.paramet
 #                     batch_first=True, dropout=DROPOUT_PROB, num_layers=2)
 
 # linear:nn.Linear = nn.Linear(in_features=128, out_features=NUM_FRENCH_WORDS)
+model.load_state_dict(torch.load('Saved_Models/best_model.pth'))
 
-firstBatch = next(iter(test_loader))
+firstBatch = next(iter(train_loader))
 X, Y, X_sequence_lengths = firstBatch
 X, Y, X_sequence_lengths = X.to(DEVICE), Y.to(DEVICE), X_sequence_lengths.to(DEVICE)
 
-with torch.inference_mode():
-    out = model(X[1])
+# with torch.inference_mode():
+#     out = model(X[1])
 
+# Get a single test sequence
+IDX = 1
+single_X = X[IDX]  # Take the first sequence, keeping batch dimension
+single_Y = Y[IDX]  # Take the first target sequence for comparison
+
+# Get model prediction
+with torch.inference_mode():
+    output = model(single_X)
+    
+# Get the predicted token indices
+predicted_indices = torch.argmax(output, dim=-1)  # Remove batch dimension
+
+# Convert the input sequence to English words
+input_sequence = []
+for idx in single_X:
+    if idx.item() != PADDING_TOKEN:
+        input_sequence.append(ix_to_english_word.get(idx.item(), "<UNK>"))
+
+# Convert the predicted sequence to French words
+predicted_sequence = []
+for idx in predicted_indices:
+    if idx.item() != PADDING_TOKEN:
+        predicted_sequence.append(ix_to_french_word.get(idx.item(), "<UNK>"))
+
+# Convert the expected sequence to French words
+expected_sequence = []
+for idx in single_Y:
+    if idx.item() != PADDING_TOKEN:
+        expected_sequence.append(ix_to_french_word.get(idx.item(), "<UNK>"))
+
+# Print the results
+print("\nInput (English):", " ".join(input_sequence))
+print("\nPredicted (French):", " ".join(predicted_sequence))
+print("\nExpected (French):", " ".join(expected_sequence))
 # %%
 # ===============================================================================================================
 #                                                   Load Model

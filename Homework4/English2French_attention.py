@@ -8,6 +8,7 @@ import torch.utils.data as data
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
 from torchtnt.utils.data import CudaDataPrefetcher
 from torchvision import datasets as imageDatasets, transforms as imageTransforms
+from torchprofile import profile_macs
 
 from sklearn.model_selection import train_test_split
 import numpy as np

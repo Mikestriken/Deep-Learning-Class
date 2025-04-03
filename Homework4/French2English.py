@@ -8,6 +8,7 @@ import torch.utils.data as data
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
 from torchtnt.utils.data import CudaDataPrefetcher
 from torchvision import datasets as imageDatasets, transforms as imageTransforms
+from torchprofile import profile_macs
 
 from sklearn.model_selection import train_test_split
 import numpy as np
@@ -301,7 +302,19 @@ class Seq2Seq(nn.Module):
 # ========== Model Parameters ==========
 
 model:Seq2Seq = Seq2Seq().to(DEVICE)
-print(f"Total Num Params in loaded model: {sum([p.numel() for p in model.parameters()])}")
+total_params = sum([p.numel() for p in model.parameters()])
+print(f"Total Num Params in loaded model: {total_params:,}")
+
+# Calculate MACs (Multiply-Accumulate Operations)
+# Create sample inputs for profiling
+firstBatch = next(iter(train_loader))
+sample_X, sample_Y = firstBatch
+sample_X, sample_Y = sample_X.to(DEVICE), sample_Y.to(DEVICE)
+
+# Profile the model
+macs = profile_macs(model, (sample_X, sample_Y))
+print(f"Computational complexity: {macs:,} MACs")
+print(f"Model size: {total_params * 4 / (1024 * 1024):.2f} MB (assuming float32)")
 # %%
 # ================================================ Shape Testing ================================================
 # X:torch.Tensor = torch.rand(size=(32, 32, 32, 3)).permute(0, 3, 1, 2)

@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.utils.data as data
 from torchtnt.utils.data import CudaDataPrefetcher
 from torchvision import datasets as imageDatasets, transforms as imageTransforms
+from torchprofile import profile_macs
 
 from sklearn.model_selection import train_test_split
 import numpy as np
@@ -139,20 +140,20 @@ class RNNNet(nn.Module):
 # model.load_state_dict(torch.load('Saved_Models/best_model.pth'))
 
 # ========== Model Parameters ==========
-model:RNNNet = RNNNet(useEmbedding=False).to(DEVICE) # calflops doesn't work with embedding layer
-
-from calflops import calculate_flops
-from torchvision import models
-flops, macs, params = calculate_flops(model=model, 
-                                      input_shape=(BATCH_SIZE, SEQUENCE_LENGTH, 128),
-                                      output_as_string=True,
-                                      output_precision=4)
-print(f"Params: {params}\nFLOPS (Floating-Point Operations Per Second): {flops}\nMACS (Multiply–ACcumulate operation per Second): {macs}\n")
-
-
-
 model:RNNNet = RNNNet(useEmbedding=True).to(DEVICE)
-print(f"Total Num Params in loaded model: {sum(p.numel() for p in model.parameters())}")
+total_params = sum([p.numel() for p in model.parameters()])
+print(f"Total Num Params in loaded model: {total_params:,}")
+
+# Calculate MACs (Multiply-Accumulate Operations)
+# Create sample inputs for profiling
+firstBatch = next(iter(train_loader))
+sample_X, _ = firstBatch
+sample_X = sample_X.to(DEVICE)
+
+# Profile the model
+macs = profile_macs(model, (sample_X, ))
+print(f"Computational complexity: {macs:,} MACs")
+print(f"Model size: {total_params * 4 / (1024 * 1024):.2f} MB (assuming float32)")
 # %%
 # ================================================ Shape Testing ================================================
 # X:torch.Tensor = torch.rand(size=(32, 32, 32, 3)).permute(0, 3, 1, 2)
