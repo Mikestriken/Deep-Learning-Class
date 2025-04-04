@@ -305,7 +305,7 @@ Optimizer_Function:torch.optim.Adam = torch.optim.Adam(
     weight_decay=1e-5
 )
 
-EPOCHS:int = 50
+EPOCHS:int = 100
 epochIterator:int = 0
 
 avgTrainBatchLossPerEpoch:list = []

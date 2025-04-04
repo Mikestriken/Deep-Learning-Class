@@ -305,7 +305,7 @@ Optimizer_Function:torch.optim.Adam = torch.optim.Adam(
     weight_decay=1e-5
 )
 
-EPOCHS:int = -1
+EPOCHS:int = 100
 epochIterator:int = 0
 
 avgTrainBatchLossPerEpoch:list = []
@@ -315,7 +315,7 @@ testAccuracyPerEpoch:list = []
 
 bestTestAccuracy:float = 0
 
-MINIMUM_TEST_ACCURACY:int = 84
+MINIMUM_TEST_ACCURACY:int = 83
 
 TOTAL_TRAIN_TOKENS = sum((Y_train_batch != PADDING_TOKEN).sum().item() for _, Y_train_batch in train_loader)
 TOTAL_TEST_TOKENS = sum((Y_test_batch != PADDING_TOKEN).sum().item() for _, Y_test_batch in test_loader)

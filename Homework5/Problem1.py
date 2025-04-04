@@ -36,7 +36,7 @@ ix_to_char = {i: ch for i, ch in enumerate(chars)}
 char_to_ix = {ch: i for i, ch in enumerate(chars)} 
 
 # Preparing the dataset
-SEQUENCE_LENGTH:int = 20
+SEQUENCE_LENGTH:int = 30
 X = []
 y = []
 for i in range(len(dataset) - SEQUENCE_LENGTH):
@@ -83,10 +83,8 @@ test_loader:data.DataLoader = data.DataLoader(test_dataset, batch_size=32,
 train_prefetcher:CudaDataPrefetcher = CudaDataPrefetcher(data_iterable=train_loader, device=DEVICE, num_prefetch_batches=NUM_BATCHES_TO_PREFETCH)
 test_prefetcher:CudaDataPrefetcher = CudaDataPrefetcher(data_iterable=test_loader, device=DEVICE, num_prefetch_batches=NUM_BATCHES_TO_PREFETCH)
 
-DROPOUT_PROB:float = 0.0
-
-NUM_CHARS:int = len(chars)
-
+NUM_CHARS:int = len(chars) + 1
+EOS_TOKEN:int = NUM_CHARS - 1
 class PositionalEncoding(nn.Module):
     def __init__(self, transformer_input_feature_size, max_len=5000):
         super().__init__()
@@ -106,8 +104,9 @@ class TransformerModel(nn.Module):
         
         NUM_LAYERS:int = 2
         NUM_HEADS:int = 2
-        EMBEDDING_SIZE:int = 128
+        EMBEDDING_SIZE:int = 256
         HIDDEN_SIZE:int = 256
+        DROPOUT_PROB:float = 0.0
         
         self.char_embedding:nn.Embedding = nn.Embedding(num_embeddings=NUM_CHARS, embedding_dim=EMBEDDING_SIZE)
         self.positional_encoding:PositionalEncoding = PositionalEncoding(transformer_input_feature_size=EMBEDDING_SIZE)
@@ -130,18 +129,16 @@ class TransformerModel(nn.Module):
         self.fc_out:nn.Linear = nn.Linear(in_features=EMBEDDING_SIZE, out_features=NUM_CHARS)
         self.dropout:nn.Dropout = nn.Dropout(p=DROPOUT_PROB)
     
-    def forward(self, X, Y):
-        X_embedded:torch.Tensor = self.dropout(self.positional_encoding(self.char_embedding(x)))
+    def forward(self, X):
+        X_embedded:torch.Tensor = self.dropout(self.positional_encoding(self.char_embedding(X)))
         
         encoder_output:torch.Tensor = self.encoder(src=X_embedded)
         
-        seq_len = X.size(1)
-        tgt_mask = torch.triu(torch.ones(seq_len, seq_len, device=DEVICE), diagonal=1).bool()
+        decoder_input:torch.Tensor = torch.full(size=(X.size(0), 1), fill_value=EOS_TOKEN, device=DEVICE)
         
         decoder_output:torch.Tensor = self.decoder(
-            tgt=X_embedded, 
+            tgt=self.char_embedding(decoder_input), 
             memory=encoder_output,
-            tgt_mask=tgt_mask
         )
         
         # For single character prediction, we only need the last position
@@ -178,8 +175,8 @@ print(f"Model size: {total_params * 4 / (1024 * 1024):.2f} MB (assuming float32)
 # print(X.shape)
 # print(model(X.to(DEVICE)))
 
-# firstBatch = next(iter(train_loader))
-# X, Y = firstBatch
+firstBatch = next(iter(train_loader))
+X, Y = firstBatch
 
 # print(X.shape)
 # print(X[0])
@@ -211,8 +208,16 @@ def linearOffset(input, offset, target):
     return max(0, min(offset, target - input))
 
 Loss_Function:nn.CrossEntropyLoss = nn.CrossEntropyLoss()
-Optimizer_Function:torch.optim.Adam = torch.optim.Adam(params=model.parameters())#,
-                                                    #  lr=0.15) #0.15
+# Optimizer_Function:torch.optim.Adam = torch.optim.Adam(params=model.parameters())
+# Optimizer_Function:torch.optim.SGD = torch.optim.SGD(params=model.parameters(),
+#                                                      lr=0.0001)
+Optimizer_Function:torch.optim.Adam = torch.optim.Adam(
+    params=model.parameters(),
+    lr=0.0001,
+    betas=(0.9, 0.98),
+    eps=1e-9,
+    weight_decay=1e-5
+)
 
 EPOCHS:int = 50
 epochIterator:int = 0
@@ -224,7 +229,9 @@ testAccuracyPerEpoch:list = []
 
 bestTestAccuracy:float = 0
 
-while not interrupted and ((epochIterator < EPOCHS or EPOCHS == -1) or trainEpochAccuracy < testEpochAccuracy + linearOffset(input=testEpochAccuracy, offset=3, target=99) or bestTestAccuracy < 50):
+MINIMUM_TEST_ACCURACY:int = 45
+
+while not interrupted and ((epochIterator < EPOCHS or EPOCHS == -1) or (trainEpochAccuracy < testEpochAccuracy + linearOffset(input=testEpochAccuracy, offset=0, target=99) and (bestTestAccuracy < MINIMUM_TEST_ACCURACY)) or bestTestAccuracy < MINIMUM_TEST_ACCURACY):
     startTime:float = time.time()
     model.train()
     
@@ -280,7 +287,7 @@ while not interrupted and ((epochIterator < EPOCHS or EPOCHS == -1) or trainEpoc
         estRemainingTime:float = (EPOCHS - epochIterator - 1)*epochTime / 60
         print(f"epoch: {epochIterator} \t| train loss: {trainEpochAverageBatchLoss:.5f}, train accuracy: {trainEpochAccuracy:.2f}% \t| test loss: {testEpochAverageBatchLoss:.5f}, test accuracy: {testEpochAccuracy:.2f}% \t| TTG: {int(estRemainingTime):02}:{int((estRemainingTime - int(estRemainingTime))*60):02}")
         
-        if testEpochAccuracy > 50 and testEpochAccuracy > bestTestAccuracy: 
+        if testEpochAccuracy > MINIMUM_TEST_ACCURACY and testEpochAccuracy > bestTestAccuracy: 
             bestTestAccuracy:float = testEpochAccuracy
             torch.save(model.state_dict(), 'Saved_Models/best_model.pth')
             print(f"↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ SAVED ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")

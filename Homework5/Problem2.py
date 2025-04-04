@@ -39,7 +39,7 @@ char_to_ix = {ch: i for i, ch in enumerate(chars)}
 
 encoded_dataset = [char_to_ix[ch] for ch in dataset]
 
-SEQUENCE_LENGTH:int = 50
+SEQUENCE_LENGTH:int = 20
 X = []
 y = []
 # for i in range(0, len(encoded_text) - sequence_length):
@@ -92,55 +92,74 @@ test_loader:data.DataLoader = data.DataLoader(test_dataset, batch_size=BATCH_SIZ
 train_prefetcher:CudaDataPrefetcher = CudaDataPrefetcher(data_iterable=train_loader, device=DEVICE, num_prefetch_batches=NUM_BATCHES_TO_PREFETCH)
 test_prefetcher:CudaDataPrefetcher = CudaDataPrefetcher(data_iterable=test_loader, device=DEVICE, num_prefetch_batches=NUM_BATCHES_TO_PREFETCH)
 
-DROPOUT_PROB:float = 0.0
+NUM_CHARS:int = len(chars) + 1
+EOS_TOKEN:int = NUM_CHARS - 1
+class PositionalEncoding(nn.Module):
+    def __init__(self, transformer_input_feature_size, max_len=5000):
+        super().__init__()
+        self.encoding = torch.zeros(max_len, transformer_input_feature_size)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, transformer_input_feature_size, 2).float() * (-np.log(10000.0) / transformer_input_feature_size))
+        self.encoding[:, 0::2] = torch.sin(position * div_term)
+        self.encoding[:, 1::2] = torch.cos(position * div_term)
+        self.encoding = self.encoding.unsqueeze(0).to(DEVICE)
 
-NUM_CHARS:int = len(chars)
+    def forward(self, x):
+        return x + self.encoding[:, :x.size(1)].detach()
 
-class RNNNet(nn.Module):
-    class lstmIndices(Enum):
-        OUTPUT = 0
-    
-    def __init__(self, useEmbedding:bool = True):
+class TransformerModel(nn.Module):
+    def __init__(self):
         super().__init__()
         
-        self.useEmbedding:bool = useEmbedding
+        NUM_LAYERS:int = 4
+        NUM_HEADS:int = 2
+        EMBEDDING_SIZE:int = 256
+        HIDDEN_SIZE:int = 256
+        DROPOUT_PROB:float = 0.0
         
-        self.charEmbeddingLayer:nn.Embedding = nn.Embedding(num_embeddings=NUM_CHARS, embedding_dim=128)
+        self.char_embedding:nn.Embedding = nn.Embedding(num_embeddings=NUM_CHARS, embedding_dim=EMBEDDING_SIZE)
+        self.positional_encoding:PositionalEncoding = PositionalEncoding(transformer_input_feature_size=EMBEDDING_SIZE)
         
-        self.rnn:nn.GRU = nn.GRU(input_size=128, hidden_size=128, num_layers=1,
-                                    batch_first=True, dropout=DROPOUT_PROB)
-        
-        self.outputDenseLayer = nn.Sequential(
-            
-            nn.Linear(in_features=128, out_features=128),
-            nn.BatchNorm1d(num_features=128),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(in_features=128, out_features=NUM_CHARS),
+        # Encoder components
+        self.encoder_layer:nn.TransformerEncoderLayer = nn.TransformerEncoderLayer(
+            d_model=EMBEDDING_SIZE, nhead=NUM_HEADS, dim_feedforward=HIDDEN_SIZE, dropout=DROPOUT_PROB,
+            batch_first=True
         )
-    
-    def forward(self, x):
-        # x = self.charEmbeddingLayer(x)
-        # x = self.lstm(x)[self.lstmIndices.OUTPUT][:, -1, :]
-        # return self.outputDenseLayer(x)
+        self.encoder:nn.TransformerEncoder = nn.TransformerEncoder(self.encoder_layer, num_layers=NUM_LAYERS)
         
-        if self.useEmbedding:
-            return self.outputDenseLayer(
-                self.rnn(
-                    self.charEmbeddingLayer(x)
-                )[self.lstmIndices.OUTPUT.value][:, -1, :] # next predicted character output at end of sequence
-            )
-        else:
-            return self.outputDenseLayer(
-                self.rnn(
-                    x
-                )[self.lstmIndices.OUTPUT.value][:, -1, :] # next predicted character output at end of sequence
-            )
+        # Decoder components
+        self.decoder_layer:nn.TransformerDecoderLayer = nn.TransformerDecoderLayer(
+            d_model=EMBEDDING_SIZE, nhead=NUM_HEADS, dim_feedforward=HIDDEN_SIZE, dropout=DROPOUT_PROB,
+            batch_first=True
+        )
+        self.decoder:nn.TransformerDecoder = nn.TransformerDecoder(self.decoder_layer, num_layers=NUM_LAYERS)
+        
+        # Output layer
+        self.fc_out:nn.Linear = nn.Linear(in_features=EMBEDDING_SIZE, out_features=NUM_CHARS)
+        self.dropout:nn.Dropout = nn.Dropout(p=DROPOUT_PROB)
+    
+    def forward(self, X):
+        X_embedded:torch.Tensor = self.dropout(self.positional_encoding(self.char_embedding(X)))
+        
+        encoder_output:torch.Tensor = self.encoder(src=X_embedded)
+        
+        decoder_input:torch.Tensor = torch.full(size=(X.size(0), 1), fill_value=EOS_TOKEN, device=DEVICE)
+        
+        decoder_output:torch.Tensor = self.decoder(
+            tgt=self.char_embedding(decoder_input), 
+            memory=encoder_output,
+        )
+        
+        # For single character prediction, we only need the last position
+        final_output = decoder_output[:, -1, :]
+        
+        # Pass through final linear layer to get character probabilities
+        return self.fc_out(final_output)
 
 # model.load_state_dict(torch.load('Saved_Models/best_model.pth'))
 
 # ========== Model Parameters ==========
-model:RNNNet = RNNNet(useEmbedding=False).to(DEVICE)
+model:TransformerModel = TransformerModel().to(DEVICE)
 total_params = sum([p.numel() for p in model.parameters()])
 print(f"Total Num Params in loaded model: {total_params:,}")
 
@@ -198,10 +217,18 @@ def linearOffset(input, offset, target):
     return max(0, min(offset, target - input))
 
 Loss_Function:nn.CrossEntropyLoss = nn.CrossEntropyLoss()
-Optimizer_Function:torch.optim.Adam = torch.optim.Adam(params=model.parameters())
-                                                    #  lr=0.05) #0.15
+# Optimizer_Function:torch.optim.Adam = torch.optim.Adam(params=model.parameters())
+# Optimizer_Function:torch.optim.SGD = torch.optim.SGD(params=model.parameters(),
+#                                                      lr=0.0001)
+Optimizer_Function:torch.optim.Adam = torch.optim.Adam(
+    params=model.parameters(),
+    lr=0.0001,
+    betas=(0.9, 0.98),
+    eps=1e-9,
+    weight_decay=1e-5
+)
 
-EPOCHS:int = 50
+EPOCHS:int = 20
 epochIterator:int = 0
 
 avgTrainBatchLossPerEpoch:list = []
@@ -211,9 +238,9 @@ testAccuracyPerEpoch:list = []
 
 bestTestAccuracy:float = 0
 
-MIN_TEST_ACC_THRESHOLD:int = 50
+MINIMUM_TEST_ACCURACY:int = 45
 
-while not interrupted and ((epochIterator < EPOCHS or EPOCHS == -1) or (trainEpochAccuracy < testEpochAccuracy + linearOffset(input=testEpochAccuracy, offset=0, target=99) and (bestTestAccuracy < MIN_TEST_ACC_THRESHOLD)) or bestTestAccuracy < MIN_TEST_ACC_THRESHOLD):
+while not interrupted and ((epochIterator < EPOCHS or EPOCHS == -1) or (trainEpochAccuracy < testEpochAccuracy + linearOffset(input=testEpochAccuracy, offset=0, target=99) and (bestTestAccuracy < MINIMUM_TEST_ACCURACY)) or bestTestAccuracy < MINIMUM_TEST_ACCURACY):
     startTime:float = time.time()
     model.train()
     
@@ -269,7 +296,7 @@ while not interrupted and ((epochIterator < EPOCHS or EPOCHS == -1) or (trainEpo
         estRemainingTime:float = (EPOCHS - epochIterator - 1)*epochTime / 60
         print(f"epoch: {epochIterator} \t| train loss: {trainEpochAverageBatchLoss:.5f}, train accuracy: {trainEpochAccuracy:.2f}% \t| test loss: {testEpochAverageBatchLoss:.5f}, test accuracy: {testEpochAccuracy:.2f}% \t| TTG: {int(estRemainingTime):02}:{int((estRemainingTime - int(estRemainingTime))*60):02}")
         
-        if testEpochAccuracy > 50 and testEpochAccuracy > bestTestAccuracy: 
+        if testEpochAccuracy > MINIMUM_TEST_ACCURACY and testEpochAccuracy > bestTestAccuracy: 
             bestTestAccuracy:float = testEpochAccuracy
             torch.save(model.state_dict(), 'Saved_Models/best_model.pth')
             print(f"↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ SAVED ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")

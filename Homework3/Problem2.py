@@ -39,7 +39,7 @@ char_to_ix = {ch: i for i, ch in enumerate(chars)}
 
 encoded_dataset = [char_to_ix[ch] for ch in dataset]
 
-SEQUENCE_LENGTH:int = 50
+SEQUENCE_LENGTH:int = 30
 X = []
 y = []
 # for i in range(0, len(encoded_text) - sequence_length):
