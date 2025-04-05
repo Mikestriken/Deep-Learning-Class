@@ -39,7 +39,7 @@ char_to_ix = {ch: i for i, ch in enumerate(chars)}
 
 encoded_dataset = [char_to_ix[ch] for ch in dataset]
 
-SEQUENCE_LENGTH:int = 20
+SEQUENCE_LENGTH:int = 30
 X = []
 y = []
 # for i in range(0, len(encoded_text) - sequence_length):
@@ -111,7 +111,7 @@ class TransformerModel(nn.Module):
     def __init__(self):
         super().__init__()
         
-        NUM_LAYERS:int = 4
+        NUM_LAYERS:int = 2
         NUM_HEADS:int = 2
         EMBEDDING_SIZE:int = 256
         HIDDEN_SIZE:int = 256
