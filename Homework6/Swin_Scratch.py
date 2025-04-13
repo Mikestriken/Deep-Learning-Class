@@ -156,7 +156,7 @@ testAccuracyPerEpoch:list = []
 
 bestTestAccuracy:float = 0
 
-MINIMUM_TEST_ACCURACY:int = 83
+MINIMUM_TEST_ACCURACY:int = 0
 SAVE_CHECKPOINTS:bool = False
 
 trainStartTime:float = time.time()
@@ -215,8 +215,12 @@ while not interrupted and ((epochIterator < EPOCHS or EPOCHS == -1) or trainEpoc
         estRemainingTime:float = (EPOCHS - epochIterator - 1)*epochTime / 60
         print(f"epoch: {epochIterator} \t| train loss: {trainEpochAverageBatchLoss:.5f}, train accuracy: {trainEpochAccuracy:.2f}% \t| test loss: {testEpochAverageBatchLoss:.5f}, test accuracy: {testEpochAccuracy:.2f}% \t| TTG: {int(estRemainingTime):02}:{int((estRemainingTime - int(estRemainingTime))*60):02}")
         
-        if SAVE_CHECKPOINTS and testEpochAccuracy > MINIMUM_TEST_ACCURACY and testEpochAccuracy > bestTestAccuracy: 
+        newBestModel:bool = testEpochAccuracy > MINIMUM_TEST_ACCURACY and testEpochAccuracy > bestTestAccuracy
+        if newBestModel: 
             bestTestAccuracy:float = testEpochAccuracy
+            print(f"↑↑↑↑↑↑↑↑↑↑↑↑↑ NEW BEST MODEL ↑↑↑↑↑↑↑↑↑↑↑↑↑")
+            
+        if SAVE_CHECKPOINTS and newBestModel: 
             torch.save(model.state_dict(), 'Saved_Models/best_model.pth')
             print(f"↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ SAVED ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
         
