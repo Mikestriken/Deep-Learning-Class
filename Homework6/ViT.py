@@ -108,28 +108,28 @@ class VisionTransformer(nn.Module):
     def __init__(self):
         super().__init__()
         
-        NUM_LAYERS:int = 4
-        NUM_HEADS:int = 4
-        EMBEDDING_SIZE:int = 2048
+        self.NUM_LAYERS:int = 4
+        self.NUM_HEADS:int = 4
+        self.EMBEDDING_SIZE:int = 256
         # HIDDEN_SIZE:int = 2048
         DROPOUT_PROB:float = 0.1
         
         IMAGE_SIZE:int = 32
-        PATCH_SIZE:int = 4
-        NUM_PATCHES = (IMAGE_SIZE // PATCH_SIZE) ** 2
+        self.PATCH_SIZE:int = 8
+        NUM_PATCHES = (IMAGE_SIZE // self.PATCH_SIZE) ** 2
         
-        self.patch_embed:PatchEmbedding = PatchEmbedding(image_size=IMAGE_SIZE, patch_size=PATCH_SIZE, in_channels=3, embed_dim=EMBEDDING_SIZE)
-        self.CLS_TOKEN:nn.Parameter = nn.Parameter(torch.zeros(1, 1, EMBEDDING_SIZE))
-        self.pos_embed:nn.Parameter = nn.Parameter(torch.zeros(1, NUM_PATCHES + 1, EMBEDDING_SIZE))
+        self.patch_embed:PatchEmbedding = PatchEmbedding(image_size=IMAGE_SIZE, patch_size=self.PATCH_SIZE, in_channels=3, embed_dim=self.EMBEDDING_SIZE)
+        self.CLS_TOKEN:nn.Parameter = nn.Parameter(torch.zeros(1, 1, self.EMBEDDING_SIZE))
+        self.pos_embed:nn.Parameter = nn.Parameter(torch.zeros(1, NUM_PATCHES + 1, self.EMBEDDING_SIZE))
         
         self.dropout:nn.Dropout = nn.Dropout(DROPOUT_PROB)
         
         self.transformer:nn.ModuleList = nn.ModuleList(
-            [TransformerEncoder(embed_dim=EMBEDDING_SIZE, num_heads=NUM_HEADS, mlp_dim=4*EMBEDDING_SIZE, dropoutP=DROPOUT_PROB) for _ in range(NUM_LAYERS)]
+            [TransformerEncoder(embed_dim=self.EMBEDDING_SIZE, num_heads=self.NUM_HEADS, mlp_dim=4*self.EMBEDDING_SIZE, dropoutP=DROPOUT_PROB) for _ in range(self.NUM_LAYERS)]
         )
         
-        self.layer_norm:nn.LayerNorm = nn.LayerNorm(normalized_shape=EMBEDDING_SIZE)
-        self.classifier:nn.Linear = nn.Linear(in_features=EMBEDDING_SIZE, out_features=100)
+        self.layer_norm:nn.LayerNorm = nn.LayerNorm(normalized_shape=self.EMBEDDING_SIZE)
+        self.classifier:nn.Linear = nn.Linear(in_features=self.EMBEDDING_SIZE, out_features=100)
 
     def forward(self, X):
         BATCH_SIZE = X.shape[0]
@@ -301,6 +301,7 @@ averageEpochTime:float = totalTrainTime / epochIterator
 
 print(f"Total Training Time: {int(totalTrainTime):02}:{int((totalTrainTime - int(totalTrainTime))*60):02}")
 print(f"Average Epoch Time: {int(averageEpochTime):02}:{int((averageEpochTime - int(averageEpochTime))*60):02}")
+print(f"({model.PATCH_SIZE}x{model.PATCH_SIZE}) -- {model.EMBEDDING_SIZE} -- ({model.NUM_LAYERS},{model.NUM_HEADS})")
         
 # %%
 # ===============================================================================================================
