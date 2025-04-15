@@ -42,7 +42,6 @@ else:
 Model_Image_PreProcessor = AutoImageProcessor.from_pretrained(MODEL_NAME)
 
 data_transform = imageTransforms.Compose([
-    imageTransforms.Resize((224, 224)),
     imageTransforms.TrivialAugmentWide(),
     imageTransforms.ToTensor(),
     imageTransforms.Normalize(mean=Model_Image_PreProcessor.image_mean, std=Model_Image_PreProcessor.image_std)
@@ -90,6 +89,17 @@ for param in model.swin.parameters():
 # Only the classifier head will be trained
 for param in model.classifier.parameters():
     param.requires_grad = True
+    
+model: nn.Sequential = nn.Sequential(
+    nn.ConvTranspose2d(in_channels=3, out_channels=64, kernel_size=4, stride=2, padding=1),  # 32 → 64
+    nn.ReLU(inplace=True),
+    nn.ConvTranspose2d(64, 64, kernel_size=4, stride=2, padding=1),  # 64 → 128
+    nn.ReLU(inplace=True),
+    nn.ConvTranspose2d(64, 3, kernel_size=4, stride=2, padding=1),  # 128 → 256 (then center crop)
+    nn.ReLU(inplace=True),
+    nn.AdaptiveAvgPool2d((224, 224)),  # Resizes to 224x224
+    model,  # Swin model
+).to(DEVICE)
 
 total_params = sum([p.numel() for p in model.parameters()])
 print(f"Total Num Params in loaded model: {total_params:,}")
@@ -111,7 +121,7 @@ X, Y = firstBatch
 X, Y = X.to(DEVICE), Y.to(DEVICE)
 
 print(f"X: {X.shape}")
-logits = model(X.to(DEVICE))
+logits = model(X.to(DEVICE)).logits
 print(f"Logits: {logits.shape}")
 print(f"Pred: {logits.argmax(dim=1).shape}")
 print(f"Expected: {Y.shape}")
@@ -177,7 +187,7 @@ while not interrupted and ((epochIterator < EPOCHS or EPOCHS == -1) or trainEpoc
         X_train_batch:torch.Tensor = X_train_batch.to(DEVICE, non_blocking=True)
         Y_train_batch:torch.Tensor = Y_train_batch.to(DEVICE, non_blocking=True)
         
-        Y_train_pred_logits:torch.Tensor = model(X_train_batch)
+        Y_train_pred_logits:torch.Tensor = model(X_train_batch).logits
         
         trainBatchLoss = Loss_Function(Y_train_pred_logits, Y_train_batch.type(torch.int64))
         
@@ -204,7 +214,7 @@ while not interrupted and ((epochIterator < EPOCHS or EPOCHS == -1) or trainEpoc
             X_test_batch:torch.Tensor = X_test_batch.to(DEVICE, non_blocking=True)
             Y_test_batch:torch.Tensor = Y_test_batch.to(DEVICE, non_blocking=True)
         
-            Y_test_pred_logits:torch.Tensor = model(X_test_batch)
+            Y_test_pred_logits:torch.Tensor = model(X_test_batch).logits
         
             testBatchLoss = Loss_Function(Y_test_pred_logits, Y_test_batch.type(torch.int64))
     
