@@ -32,7 +32,7 @@ DEVICE:torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu
 
 if torch.cuda.is_available(): torch.cuda.empty_cache()
 
-swin_tiny:bool = True
+swin_tiny:bool = False
 MODEL_NAME:str
 if swin_tiny:
     MODEL_NAME:str = "microsoft/swin-tiny-patch4-window7-224"
@@ -306,7 +306,7 @@ with torch.inference_mode():
         X_test_batch:torch.Tensor = X_test_batch.to(DEVICE, non_blocking=True)
         Y_test_batch:torch.Tensor = Y_test_batch.to(DEVICE, non_blocking=True)
             
-        modelLogits = model(X_test_batch)
+        modelLogits = model(X_test_batch).logits
         modelOutputs = modelLogits.softmax(dim=1).argmax(dim=1)
         
         outputIndex = 0

@@ -108,9 +108,9 @@ class VisionTransformer(nn.Module):
     def __init__(self):
         super().__init__()
         
-        self.NUM_LAYERS:int = 4
-        self.NUM_HEADS:int = 4
-        self.EMBEDDING_SIZE:int = 256
+        self.NUM_LAYERS:int = 8
+        self.NUM_HEADS:int = 2
+        self.EMBEDDING_SIZE:int = 512
         # HIDDEN_SIZE:int = 2048
         DROPOUT_PROB:float = 0.1
         
